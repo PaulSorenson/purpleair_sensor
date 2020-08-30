@@ -4,6 +4,8 @@ import asyncio
 import configparser
 import json
 import logging
+import site
+import sys
 from signal import signal
 from argparse import ArgumentParser, Namespace
 from datetime import datetime, timezone
@@ -46,13 +48,14 @@ need to review:
 
 logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s")
 LOG = logging.getLogger()
+LOG.setLevel(logging.INFO)
 
 MIN_WINDOW = 1  # will skip first cycle if Tn - MIN_WINDOW > t > Tn
 
 # 30 sec averaging with live=true param, 120 sec without.
 LOOP_INTERVAL = 30
 
-config_path = Path(__file__).resolve().parent / "config.ini"
+CONFIG_FILENAME = "purple_air.ini"
 
 MessageType = Enum("MessageType", "DATA MSG SIGNAL")
 
@@ -120,15 +123,35 @@ def get_common_args(defaults: Optional[Dict[str, str]] = None) -> ArgumentParser
     return ap
 
 
+def find_config_file(config_filename: Path) -> Path:
+    locations = [site.USER_BASE, sys.prefix, "/etc"]
+    for l in locations:
+        config_path = Path(l) / CONFIG_FILENAME
+        if config_path.exists():
+            return config_path
+    raise FileNotFoundError(f"{config_filename} not found in {', '.join(locations)}")
+
+
 def get_args() -> Namespace:
     config = configparser.ConfigParser()
-    with open(config_path, "r") as cf:
-        config.read_file(cf)
+    try:
+        config_path = find_config_file(CONFIG_FILENAME)
+        with open(config_path, "r") as cf:
+            config.read_file(cf)
+    except FileNotFoundError as e:
+        LOG.info(f"{str(e)},\nusing defaults, see --help for more info.")
+        config = {"db": {}, "common": {}}
+
     ap = ArgumentParser(
         parents=[
             get_db_args(defaults=dict(config["db"])),
             get_common_args(defaults=dict(config["common"])),
-        ]
+        ],
+        epilog=(
+            f"If '{CONFIG_FILENAME}' is present, it will be used for defaults. "
+            f"See https://github.com/PaulSorenson/purpleair_sensor/tree/master/scripts/ "
+            f"for a template."
+        ),
     )
     ap.add_argument(
         "--url", default="http://purpleair-c8ee.home.metrak.com/json", help="PAII url."
@@ -144,7 +167,7 @@ def get_args() -> Namespace:
         "you might want to increase this (and/or increase --loop-interval).",
     )
     opt = ap.parse_args()
-    LOG.debug(opt)
+    # LOG.debug(opt)  # don't want password in log file
     return opt
 
 
@@ -255,7 +278,6 @@ async def main() -> None:
     numeric_level = getattr(logging, opt.log_level.upper(), None)
     if isinstance(numeric_level, int):
         LOG.setLevel(numeric_level)
-    LOG.debug(opt)
     parms = {"live": "true"}
     # scheduler uses datetime, compares with utc, naive times.
     scheduler = TimedScheduler()

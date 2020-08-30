@@ -1,12 +1,48 @@
 # Purple Air PAII sensor data collection
 
-[PurpleAir](https://www.purpleair.com): Real-time Air Quality Monitoring
-
-Makes a number of devices for measuring airborne pollution. When installed there
-is a registration process which then adds the device to the [purple air map](https://www.purpleair.com/map). There are also APIs for downloading historic data from one or more sensors.
+[PurpleAir](https://www.purpleair.com): **Real-time Air Quality Monitoring** make a number of devices for measuring airborne pollution. When installed there is a registration process which then adds the device to the [purple air map](https://www.purpleair.com/map). There are also APIs for downloading historic sensor data from the cloud.
 
 The device has its own REST API facilitating direct polling - all you need to know is the hostname/ip-address of your sensor(s) and you can point a browser at it. This is where this project has started.
 
 The `paii_poll.py` script is intended to run continuously, polling the device at regular intervals and storing the data in a (postgresql+timescaledb) database.
 
-"""
+As is you need to have a working postgresql setup to make use of it or hack on it to write to other destinations such as MySQL or CSV. Pull requests are welcome.
+
+## INSTALLATION
+
+As a prerequisite to run the code you should have:
+- a working postgres server
+- with a database named "timeseries" (unless you override the name in options)
+- a role/user with CREATE TABLE and write access to the "timeseries"
+- network setup to access allow the user to access it.
+- installation of timescaledb. Note it probably will work without this at a small scale, you would need to supply the `--no-timescaledb` option.
+
+I have only tested this on fedora/centos. Get the code:
+
+```
+git clone https://github.com/PaulSorenson/purpleair_sensor.git
+cd purpleair_sensor
+```
+
+Run directly from source:
+
+```
+PYTHONPATH=. python3.8 scripts/paii_poll.py
+```
+
+Install:
+
+```
+python3.8 setup.py install --user
+# or
+sudo python3.8 setup.py install
+```
+
+Although `scripts/purple_air.ini` is not essential it will make running the `paii_poll.py` script more convenient. To do that make a copy of `scripts/purple_air.ini.template` alongside `paii_poll.py` and adjust the entries as necessary.
+
+To manage passwords to your postgres server, there are a few choices:
+
+- If you have installed python `keyring` and a working back end (eg gnome) then `keyring set <user> postgres` should stash your postgres password away safely and `paii_poll.py` will try to retrieve it from there.
+- Can add it to the command line - it will be in your bash history so be careful.
+- add it to `purple_air.ini`. At least you can set the permissions so no one else can read it.
+- you can be prompted for it.

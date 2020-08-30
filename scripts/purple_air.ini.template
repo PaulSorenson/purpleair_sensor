@@ -1,16 +1,15 @@
 [common]
 # log_level = INFO
-log_level = DEBUG
 
 [db]
 # database = timeseries
-hostname = postgres
+host = <postgres server hostname>
 # user = <current user>
 # password = $(keyring get <user> postgres)
 # paii_table = "paii_raw"
 # time_field = "paii_time"
 
 [device]
-url = http://purpleair-c8ee.home.metrak.com/json
+url = http://purpleair-xxxx.<domainname>/json
 # loop_interval = 30
 # min_window = 1

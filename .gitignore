@@ -1,7 +1,11 @@
+build/
+.config
+dist/
 .env
 .hg/
 .hgignore
 .mypy_cache/
-__pycache__/
-.vscode/
 paiitools.egg-info/
+__pycache__/
+scripts/config.ini
+.vscode/
