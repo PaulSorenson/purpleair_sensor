@@ -14,9 +14,11 @@ setup(
     keywords="PurpleAir PAII postgresql timescaledb",
     author="paul sorenson",
     author_email="news02@metrak.com",
-    packages=["paii"],
+    packages=["paii", "utils", "tests"],
+    test_suite="tests",
     scripts=["scripts/paii_poll.py"],
     data_files=[("", ["scripts/purple_air.ini.template"])],
     requires=["aiohttp", "asyncscheduler", "ayncpg", "keyring"],
+    tests_require=["pytest"],
     install_requires=["setuptools"],
 )

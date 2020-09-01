@@ -1,16 +1,15 @@
 # Purple Air PAII sensor data collection
 
-[PurpleAir](https://www.purpleair.com): **Real-time Air Quality Monitoring** make a number of devices for measuring airborne pollution. When installed there is a registration process which then adds the device to the [purple air map](https://www.purpleair.com/map). There are also APIs for downloading historic sensor data from the cloud.
+[PurpleAir](https://www.purpleair.com): **Real-time Air Quality Monitoring** make a number of devices for measuring airborne pollution. When registered the device data can be viewed on the [purple air map](https://www.purpleair.com/map). There are also APIs for downloading historic sensor data from the cloud.
 
-The device has its own REST API facilitating direct polling - all you need to know is the hostname/ip-address of your sensor(s) and you can point a browser at it. This is where this project has started.
+The device has its own REST API for direct polling - all you need to know is the hostname/ip-address of your sensor(s) and you can point a browser at it. The `paii_poll.py` script is intended to run continuously, polling the device at regular intervals and storing the data in a (postgresql+timescaledb) database.
 
-The `paii_poll.py` script is intended to run continuously, polling the device at regular intervals and storing the data in a (postgresql+timescaledb) database.
-
-As is you need to have a working postgresql setup to make use of it or hack on it to write to other destinations such as MySQL or CSV. Pull requests are welcome.
+Pull requests are welcome.
 
 ## INSTALLATION
 
 As a prerequisite to run the code you should have:
+
 - a working postgres server
 - with a database named "timeseries" (unless you override the name in options)
 - a role/user with CREATE TABLE and write access to the "timeseries"
@@ -19,20 +18,20 @@ As a prerequisite to run the code you should have:
 
 I have only tested this on fedora/centos. Get the code:
 
-```
+```bash
 git clone https://github.com/PaulSorenson/purpleair_sensor.git
 cd purpleair_sensor
 ```
 
 Run directly from source:
 
-```
+```bash
 PYTHONPATH=. python3.8 scripts/paii_poll.py
 ```
 
 Install:
 
-```
+```bash
 python3.8 setup.py install --user
 # or
 sudo python3.8 setup.py install

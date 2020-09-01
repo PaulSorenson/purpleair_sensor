@@ -5,16 +5,18 @@ import configparser
 import json
 import logging
 import site
+import socket
 import sys
-from signal import signal
 from argparse import ArgumentParser, Namespace
 from datetime import datetime, timezone
 from enum import Enum
 from functools import partial
 from getpass import getpass, getuser
 from pathlib import Path
+from signal import signal
+from logging.handlers import SysLogHandler
 from time import time
-from typing import Any, AsyncGenerator, Dict, NamedTuple, Optional
+from typing import Any, AsyncGenerator, Dict, NamedTuple, Optional, Sequence
 
 import aiohttp
 import asyncpg as apg
@@ -22,14 +24,15 @@ import keyring
 from aioscheduler import TimedScheduler
 
 from paii.purple_data import (
+    DB,
+    TABLE_RAW,
+    TIME_FIELD,
     compose_create,
     compose_insert,
     convert_data,
-    DB,
     gen_stored,
-    TABLE_RAW,
-    TIME_FIELD,
 )
+from utils.syslog_handler import get_syslog_handler_args
 
 """Poll Purple Air PAII sensor and write records to data base
 
@@ -46,8 +49,8 @@ need to review:
 - differences in DATETIME/TIMESTAMP types for other DBs.
 """
 
-logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s")
-LOG = logging.getLogger()
+logging.basicConfig(format="%(asctime)-15s %(name)s %(levelname)s %(message)s")
+LOG = logging.getLogger("paii_poll")
 LOG.setLevel(logging.INFO)
 
 MIN_WINDOW = 1  # will skip first cycle if Tn - MIN_WINDOW > t > Tn
@@ -124,7 +127,9 @@ def get_common_args(defaults: Optional[Dict[str, str]] = None) -> ArgumentParser
 
 
 def find_config_file(config_filename: Path) -> Path:
-    locations = [site.USER_BASE, sys.prefix, "/etc"]
+    locations: Sequence[str] = [
+        l for l in (site.USER_BASE, sys.prefix, "/etc") if l is not None
+    ]
     for l in locations:
         config_path = Path(l) / CONFIG_FILENAME
         if config_path.exists():
@@ -135,7 +140,7 @@ def find_config_file(config_filename: Path) -> Path:
 def get_args() -> Namespace:
     config = configparser.ConfigParser()
     try:
-        config_path = find_config_file(CONFIG_FILENAME)
+        config_path = find_config_file(Path(CONFIG_FILENAME))
         with open(config_path, "r") as cf:
             config.read_file(cf)
     except FileNotFoundError as e:
@@ -165,6 +170,14 @@ def get_args() -> Namespace:
         help="Guard time before next event. "
         "If for some reason your loop processing is very slow "
         "you might want to increase this (and/or increase --loop-interval).",
+    )
+    ap.add_argument(
+        "--syslog-host", help="Set this string to a syslog host to turn on syslog."
+    )
+    ap.add_argument(
+        "--syslog-port",
+        default="514",
+        help="Set this string to a syslog host to turn on syslog (%(default)s).",
     )
     opt = ap.parse_args()
     # LOG.debug(opt)  # don't want password in log file
@@ -278,7 +291,16 @@ async def main() -> None:
     numeric_level = getattr(logging, opt.log_level.upper(), None)
     if isinstance(numeric_level, int):
         LOG.setLevel(numeric_level)
-    parms = {"live": "true"}
+    log_handler_args = get_syslog_handler_args(opt.syslog_host, opt.syslog_port)
+    try:
+        log_handler = SysLogHandler(**log_handler_args)
+        log_fmt = logging.Formatter("%(asctime)-15s %(name)s %(levelname)s %(message)s")
+        log_handler.setFormatter(log_fmt)
+        LOG.addHandler(log_handler)
+    except ConnectionRefusedError:
+        LOG.error("syslog couldn't open {log_handler_args}. Logs will go to console.")
+    LOG.info("starting paii_poll.py")
+    rest_parms = {"live": "true"}
     # scheduler uses datetime, compares with utc, naive times.
     scheduler = TimedScheduler()
     scheduler.start()
@@ -292,7 +314,7 @@ async def main() -> None:
     )
     async with aiohttp.ClientSession() as session:
         worker = partial(
-            device_reader, session, opt.url, parms, result_queue, input_queue
+            device_reader, session, opt.url, rest_parms, result_queue, input_queue
         )
         # push non-naive datetime for ultimate storage in DB
         input_queue.put_nowait({opt.time_field: dt_next.replace(tzinfo=timezone.utc)})
@@ -324,7 +346,7 @@ async def main() -> None:
         LOG.debug(f'insert sql: "{insert_sql}"')
         drain = False
         while True:
-            LOG.debug(f"next poll event scheduled at utc: {dt_next}")
+            LOG.info(f"next poll event scheduled at utc: {dt_next}")
             msg = await result_queue.get()
             LOG.debug(f"msg received from queue '{msg}'")
             if msg.msg_type == MessageType.SIGNAL:

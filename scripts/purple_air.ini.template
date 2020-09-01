@@ -1,5 +1,8 @@
 [common]
 # log_level = INFO
+# no syslog_host means no syslog handler, console only.
+# syslog_host =
+# syslog_port = 514
 
 [db]
 # database = timeseries
