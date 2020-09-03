@@ -143,6 +143,7 @@ def get_args() -> Namespace:
         config_path = find_config_file(Path(CONFIG_FILENAME))
         with open(config_path, "r") as cf:
             config.read_file(cf)
+        LOG.info(f"using config from: '{config_path}'")
     except FileNotFoundError as e:
         LOG.info(f"{str(e)},\nusing defaults, see --help for more info.")
         config = {"db": {}, "common": {}}
@@ -176,8 +177,9 @@ def get_args() -> Namespace:
     )
     ap.add_argument(
         "--syslog-port",
-        default="514",
-        help="Set this string to a syslog host to turn on syslog (%(default)s).",
+        default="514/udp",
+        help="Set this string to a syslog host to turn on syslog (%(default)s). "
+        "Can also specify protocol, eg 514/tcp",
     )
     opt = ap.parse_args()
     # LOG.debug(opt)  # don't want password in log file
@@ -293,12 +295,18 @@ async def main() -> None:
         LOG.setLevel(numeric_level)
     log_handler_args = get_syslog_handler_args(opt.syslog_host, opt.syslog_port)
     try:
-        log_handler = SysLogHandler(**log_handler_args)
-        log_fmt = logging.Formatter("%(asctime)-15s %(name)s %(levelname)s %(message)s")
-        log_handler.setFormatter(log_fmt)
-        LOG.addHandler(log_handler)
+        if log_handler_args:
+            log_handler = SysLogHandler(**log_handler_args)
+            log_fmt = logging.Formatter(
+                "%(asctime)-15s %(name)s %(levelname)s %(message)s"
+            )
+            log_handler.setFormatter(log_fmt)
+            LOG.addHandler(log_handler)
+            LOG.info(f"added syslog handler: '{log_handler_args}'")
     except ConnectionRefusedError:
-        LOG.error("syslog couldn't open {log_handler_args}. Logs will go to console.")
+        LOG.error(
+            f"syslog couldn't open '{log_handler_args}'. Logs will go to console."
+        )
     LOG.info("starting paii_poll.py")
     rest_parms = {"live": "true"}
     # scheduler uses datetime, compares with utc, naive times.
