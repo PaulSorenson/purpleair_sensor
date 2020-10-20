@@ -4,6 +4,7 @@ import asyncio
 import configparser
 import json
 import logging
+import os
 import site
 import socket
 import sys
@@ -13,8 +14,9 @@ from enum import Enum
 from functools import partial
 from getpass import getpass, getuser
 from pathlib import Path
-from signal import signal
+from signal import signal, SIGINT
 from logging.handlers import SysLogHandler
+from threading import Semaphore, Timer
 from time import time
 from typing import Any, AsyncGenerator, Dict, NamedTuple, Optional, Sequence
 
@@ -246,6 +248,11 @@ def sig_handler(result_queue, signum, frame) -> None:
     result_queue.put_nowait(Msg(MessageType.SIGNAL, {"signal": signum}))
 
 
+def watchdog():
+    LOG.error("watchdog timer expired - exiting")
+    os.kill(os.getpid(), SIGINT)
+
+
 async def device_reader(
     session: aiohttp.ClientSession,
     url: str,
@@ -278,7 +285,7 @@ async def device_reader(
     dargs = {}
     if input_queue:
         dargs = input_queue.get_nowait()
-    async with session.get(url) as response:
+    async with session.get(url, timeout=15) as response:
         jresp = await response.json()
         LOG.debug(f"device response length: {len(jresp)}")
         jresp.update(dargs)
@@ -355,7 +362,10 @@ async def main() -> None:
         drain = False
         while True:
             LOG.info(f"next poll event scheduled at utc: {dt_next}")
+            timer = Timer(opt.loop_interval * 2, watchdog)
+            timer.start()
             msg = await result_queue.get()
+            timer.cancel()
             LOG.debug(f"msg received from queue '{msg}'")
             if msg.msg_type == MessageType.SIGNAL:
                 LOG.info(
