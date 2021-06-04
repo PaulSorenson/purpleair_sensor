@@ -1,7 +1,7 @@
 # supervisord spec to run paii poller
 
 [program:paii]
-command = /bin/python3.8 /usr/local/bin/paii_poll.py 
+command = /bin/python3.8 paii.paii_poll
 user = pms
 directory = /home/pms/src/purple_air/log
 umask = 002

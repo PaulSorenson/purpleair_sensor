@@ -8,6 +8,5 @@ dist/
 paiitools.egg-info/
 __pycache__/
 .pytest_cache
-scripts/config.ini
 .tox
 .vscode/

@@ -11,7 +11,7 @@ LOG = logging.getLogger(__name__)
 def get_syslog_handler_args(
     host: Optional[str] = None, port: str = "514"
 ) -> Optional[Dict[str, Any]]:
-    if host is None:
+    if not host:
         return None
     if host.startswith("/dev"):
         # unix socket

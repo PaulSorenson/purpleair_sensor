@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import time
 from collections import OrderedDict
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Sequence
 
@@ -14,11 +14,21 @@ class Field(NamedTuple):
     store_flag: bool
     db_name: str
     data_type: str
-    convert: Optional[Callable[[Any], Any]] = None
+    convert: Optional[Callable[[Dict[str, Any], str], Any]] = None
 
 
-def fahrenheit2celsius(f: float) -> float:
+# conversions
+def fahrenheit2celsius(data: Dict[str, Any], key: str) -> float:
+    f = data[key]
     return round((f - 32) * 5 / 9, 2)
+
+
+def get_response_date(data: Dict[str, Any], key: str) -> int:
+    return data.get(key, time.time())
+
+
+def missing_int(data: Dict[str, Any], key: str) -> int:
+    return data.get(key, -1)
 
 
 fields = [
@@ -64,9 +74,7 @@ fields = [
     Field("pm2.5_aqi_b", False, "pm2.5_aqi_b", "VARCHAR"),  # eg_aqi_b": 5
     Field("pm1_0_cf_1_b", True, "pm1_0_cf_1_b", "DOUBLE PRECISION"),  # eg 0.39
     Field("p_0_3_um_b", False, "p_0_3_um_b", "VARCHAR"),  # eg 261.79
-    Field(
-        "pm2_5_cf_1_b", True, "pm2_5_cf_1_b", "DOUBLE PRECISION"
-    ),  # eg 1.3 **** µg/m3
+    Field("pm2_5_cf_1_b", True, "pm2_5_cf_1_b", "DOUBLE PRECISION"),  # eg 1.3 **** µg/m3
     Field("p_0_5_um_b", False, "p_0_5_um_b", "VARCHAR"),  # eg 72.35
     Field("pm10_0_cf_1_b", True, "pm10_0_cf_1_b", "DOUBLE PRECISION"),  # eg 1.72
     Field("p_1_0_um_b", False, "p_1_0_um_b", "VARCHAR"),  # eg 13.05
@@ -92,18 +100,16 @@ fields = [
     Field("p_10_0_um", False, "p_10_0_um", "VARCHAR"),  # eg 0.0
     Field("pa_latency", False, "pa_latency", "VARCHAR"),  # eg 631
     Field("response", False, "response", "VARCHAR"),  # eg 201
-    Field("response_date", True, "response_date", "INTEGER"),  # eg 1598179477
-    Field("latency", True, "latency", "INTEGER"),  # eg 1459
-    Field("key1_response", False, "key1_response", "VARCHAR"),  # eg 200
     Field(
-        "key1_response_date", False, "key1_response_date", "VARCHAR"
-    ),  # eg 1598179467
+        "response_date", True, "response_date", "INTEGER", get_response_date
+    ),  # eg 1598179477
+    Field("latency", True, "latency", "INTEGER", missing_int),  # eg 1459
+    Field("key1_response", False, "key1_response", "VARCHAR"),  # eg 200
+    Field("key1_response_date", False, "key1_response_date", "VARCHAR"),  # eg 1598179467
     Field("key1_count", False, "key1_count", "VARCHAR"),  # eg 79205
     Field("ts_latency", False, "ts_latency", "VARCHAR"),  # eg 1198
     Field("key2_response", False, "key2_response", "VARCHAR"),  # eg 200
-    Field(
-        "key2_response_date", False, "key2_response_date", "VARCHAR"
-    ),  # eg 1598179470
+    Field("key2_response_date", False, "key2_response_date", "VARCHAR"),  # eg 1598179470
     Field("key2_count", False, "key2_count", "VARCHAR"),  # eg 79212
     Field("ts_s_latency", False, "ts_s_latency", "VARCHAR"),  # eg 1141
     Field("key1_response_b", False, "key1_response_b", "VARCHAR"),  # eg 200
@@ -125,7 +131,7 @@ fields = [
     Field("status_3", True, "status_3", "INTEGER"),  # eg 2
     Field("status_4", True, "status_4", "INTEGER"),  # eg 2
     Field("status_5", True, "status_5", "INTEGER"),  # eg 2
-    Field("status_6", True, "status_6", "INTEGER"),  # eg 2
+    Field("status_6", True, "status_6", "INTEGER", missing_int),  # eg 2
     Field("status_7", True, "status_7", "INTEGER"),  # eg 0
     Field("status_8", True, "status_8", "INTEGER"),  # eg 2
     Field("status_9", True, "status_9", "INTEGER"),  # eg 2
@@ -137,9 +143,7 @@ def gen_stored(fields: List[Field] = fields):
     yield from (f for f in fields if f.store_flag)
 
 
-def compose_create(
-    table_name: str, time_field: str, fields: List[Field] = fields
-) -> str:
+def compose_create(table_name: str, time_field: str, fields: List[Field] = fields) -> str:
     fdesc = ",\n".join([f"{f.db_name} {f.data_type}" for f in gen_stored()])
     sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (
 {fdesc},
@@ -177,9 +181,21 @@ def convert_data(data: Dict[str, Any], fields: List[Field] = fields) -> OrderedD
         in the same order as SQL commands assuming they are all based on the same
         field list.
     """
-    return OrderedDict(
-        {
-            f.db_name: (f.convert(data[f.json_key]) if f.convert else data[f.json_key])
-            for f in gen_stored()
-        }
-    )
+
+    missing = []
+
+    def convert(data: Dict[str, Any], field: Field) -> Any:
+        if field.convert:
+            # custom converstion function, takes care of missing data
+            return field.convert(data, field.json_key)
+        if field.json_key in data:
+            return data[field.json_key]
+        else:
+            missing.append(field.json_key)
+            return None
+
+    missing.clear()
+    result = OrderedDict({f.db_name: convert(data, f) for f in gen_stored()})
+    # if missing:
+    #     print(f"fields were missing: {missing}")
+    return result
