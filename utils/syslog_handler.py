@@ -9,8 +9,9 @@ LOG = logging.getLogger(__name__)
 
 
 def get_syslog_handler_args(
-    host: Optional[str] = None, port: str = "514"
-) -> Optional[Dict[str, Any]]:
+    host: str | None = None,
+    port: str = "514",
+) -> dict[str, Any] | None:
     if not host:
         return None
     if host.startswith("/dev"):

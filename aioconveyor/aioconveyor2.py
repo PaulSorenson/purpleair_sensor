@@ -162,9 +162,7 @@ class AioGenConveyor:
         while True:
             event, payload = await queue.get()
             log.debug(f"consumer_loop de queued: {event.loop_counter}")
-            cons_tasks = [
-                asyncio.create_task(c(event, payload)) for c in self.consumers
-            ]
+            cons_tasks = [asyncio.create_task(c(event, payload)) for c in self.consumers]
             results = await asyncio.gather(*cons_tasks)
             log.info(f"scheduler: consumers completed with: {results}")
 

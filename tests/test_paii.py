@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
-from socket import SOCK_STREAM, SOCK_DGRAM
+from socket import SOCK_DGRAM, SOCK_STREAM
 
 # from logging.handlers import SysLogHandler
 from unittest import mock
@@ -24,7 +24,7 @@ UNIX_DOMAIN = "/dev/log"
             ("localhost", "520/tcp"),
             {"address": ("localhost", 520), "socktype": SOCK_STREAM},
         ),
-        ((UNIX_DOMAIN, "520/tcp"), {"address": UNIX_DOMAIN},),
+        ((UNIX_DOMAIN, "520/tcp"), {"address": UNIX_DOMAIN}),
         (
             ("localhost", "520/udp"),
             {"address": ("localhost", 520), "socktype": SOCK_DGRAM},

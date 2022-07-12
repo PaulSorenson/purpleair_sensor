@@ -18,7 +18,10 @@ import aiohttp
 import asyncio_mqtt as mq
 import asyncpg as apg
 import keyring
+
 from aioconveyor.aioconveyor2 import AioGenConveyor, Event
+from utils.syslog_handler import get_syslog_handler_args
+
 from .purple_data import (
     DB,
     TABLE_RAW,
@@ -28,7 +31,6 @@ from .purple_data import (
     convert_data,
     gen_stored,
 )
-from utils.syslog_handler import get_syslog_handler_args
 
 """Poll Purple Air PAII sensor and write records to data base
 
@@ -65,17 +67,17 @@ PRESSURE_ADJ = 5
 
 
 async def get_connection(
-    user: Optional[str] = None,
+    user: str | None = None,
     database: str = DB,
-    host: Optional[str] = None,
-    password: Optional[str] = None,
+    host: str | None = None,
+    password: str | None = None,
 ) -> apg.connection.Connection:
     user = getuser() if user is None else user
     log.info(f"user: {user} db: {database} host: {host}")
     return await apg.connect(user=user, database=database, host=host, password=password)
 
 
-def get_db_args(defaults: Optional[Dict[str, str]] = None) -> ArgumentParser:
+def get_db_args(defaults: dict[str, str] | None = None) -> ArgumentParser:
     user = getuser()
     ap = ArgumentParser(add_help=False)
     ap.add_argument(
@@ -116,7 +118,7 @@ def get_db_args(defaults: Optional[Dict[str, str]] = None) -> ArgumentParser:
     return ap
 
 
-def get_common_args(defaults: Optional[Dict[str, str]] = None) -> ArgumentParser:
+def get_common_args(defaults: dict[str, str] | None = None) -> ArgumentParser:
     ap = ArgumentParser(add_help=False)
     ap.add_argument("--log-level", default="INFO", help="Override log level")
     if defaults is not None:
@@ -139,7 +141,7 @@ def get_args() -> Namespace:
     config = configparser.ConfigParser()
     try:
         config_path = find_config_file(Path(CONFIG_FILENAME))
-        with open(config_path, "r") as cf:
+        with open(config_path) as cf:
             config.read_file(cf)
         log.info(f"using config from: '{config_path}'")
     except FileNotFoundError as e:
@@ -158,7 +160,9 @@ def get_args() -> Namespace:
         ),
     )
     ap.add_argument(
-        "--url", default="http://purpleair-c8ee.home.metrak.com/json", help="PAII url."
+        "--url",
+        default="http://purpleair-c8ee.home.metrak.com/json",
+        help="PAII url.",
     )
     ap.add_argument(
         "--loop-interval",
@@ -195,7 +199,7 @@ def get_args() -> Namespace:
     return opt
 
 
-def get_password(user: str, password: Optional[str], account: str = "postgres") -> str:
+def get_password(user: str, password: str | None, account: str = "postgres") -> str:
     """try to pull password from keyring or prompt
 
     The python-keyring package supplies this and is dependent on a compatible
@@ -224,14 +228,14 @@ def get_password(user: str, password: Optional[str], account: str = "postgres") 
 async def produce(
     event: Event,
     url: str,
-    query_parms: Dict,
+    query_parms: dict,
     time_field: str = TIME_FIELD,
     http_timeout: int = 30,
-) -> Dict:
+) -> dict:
     log.info("producer: started")
     timeout = aiohttp.ClientTimeout(total=http_timeout)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        updates: Dict[str, datetime] = {time_field: event.event_time}
+        updates: dict[str, datetime] = {time_field: event.event_time}
         try:
             async with session.get(
                 url,
@@ -248,7 +252,7 @@ async def produce(
 
 async def consume_postgres(
     event: Event,
-    payload: Dict,
+    payload: dict,
     user: str,
     password: str,
     host: str,
@@ -256,7 +260,10 @@ async def consume_postgres(
     database: str = DB,
 ) -> int:
     conn: apg.connection.Connection = await get_connection(
-        user=user, database=database, host=host, password=password
+        user=user,
+        database=database,
+        host=host,
+        password=password,
     )
     paii_data = convert_data(payload)
     log.debug(f"data for '{host}:{database}': '{paii_data}'")
@@ -266,7 +273,7 @@ async def consume_postgres(
     except apg.exceptions.DataError:
         log.exception(
             f'paii_data: "{paii_data}"\npaii_values: "{paii_values}"'
-            '\ninsert_sql: "{insert_sql}"'
+            '\ninsert_sql: "{insert_sql}"',
         )
         raise
     return 0
@@ -283,7 +290,7 @@ class MqttConsumer:
         await self.client.connect()
         return self.client
 
-    async def consume(self, event: Event, payload: Dict):
+    async def consume(self, event: Event, payload: dict):
         if event.loop_counter < 1:
             await self.start_client()
 
@@ -316,7 +323,7 @@ class MqttConsumer:
         return 0
 
 
-async def consume_terminal(event: Event, payload: Dict):
+async def consume_terminal(event: Event, payload: dict):
     print(event, payload)
     return 0
 
@@ -331,21 +338,24 @@ async def amain() -> None:
             if log_handler_args:
                 log_handler = SysLogHandler(**log_handler_args)
                 log_fmt = logging.Formatter(
-                    "%(asctime)-15s %(name)s %(levelname)s %(message)s"
+                    "%(asctime)-15s %(name)s %(levelname)s %(message)s",
                 )
                 log_handler.setFormatter(log_fmt)
                 log.addHandler(log_handler)
                 log.info(f"added syslog handler: '{log_handler_args}'")
         except ConnectionRefusedError:
             log.error(
-                f"syslog couldn't open '{log_handler_args}'. Logs will go to console."
+                f"syslog couldn't open '{log_handler_args}'. Logs will go to console.",
             )
     log.info("starting paii_poll.py")
     password = get_password(user=opt.user, password=opt.password)
     consumers = []
     if opt.host:
         conn: apg.connection.Connection = await get_connection(
-            user=opt.user, database=opt.database, host=opt.host, password=password
+            user=opt.user,
+            database=opt.database,
+            host=opt.host,
+            password=password,
         )
         create_sql = compose_create(table_name=opt.paii_table, time_field=opt.time_field)
         log.debug(f'create sql: "{create_sql}"')
@@ -356,15 +366,16 @@ async def amain() -> None:
                 "calling create_hypertable() on table. "
                 "This requires at least the community edition of timescaledb. "
                 "See https://www.timescale.com/ for details. This code has been tested "
-                "with timescaledb and *may* work with native postgresql."
+                "with timescaledb and *may* work with native postgresql.",
             )
             await conn.execute(
                 f"SELECT create_hypertable('{opt.paii_table}',"
-                " '{opt.time_field}', if_not_exists => TRUE);"
+                " '{opt.time_field}', if_not_exists => TRUE);",
             )
 
         insert_sql = compose_insert(
-            field_names=[f.db_name for f in gen_stored()], table_name=opt.paii_table
+            field_names=[f.db_name for f in gen_stored()],
+            table_name=opt.paii_table,
         )
         log.debug(f'insert sql: "{insert_sql}"')
 
@@ -384,7 +395,9 @@ async def amain() -> None:
 
     if opt.mq_host:
         mq_writer = MqttConsumer(
-            host=opt.mq_host, topic=opt.mq_topic, downsample=opt.mq_downsample
+            host=opt.mq_host,
+            topic=opt.mq_topic,
+            downsample=opt.mq_downsample,
         )
         consumers.append(mq_writer.consume)
 

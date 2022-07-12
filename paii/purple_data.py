@@ -14,20 +14,20 @@ class Field(NamedTuple):
     store_flag: bool
     db_name: str
     data_type: str
-    convert: Optional[Callable[[Dict[str, Any], str], Any]] = None
+    convert: Callable[[dict[str, Any], str], Any] | None = None
 
 
 # conversions
-def fahrenheit2celsius(data: Dict[str, Any], key: str) -> float:
+def fahrenheit2celsius(data: dict[str, Any], key: str) -> float:
     f = data[key]
     return round((f - 32) * 5 / 9, 2)
 
 
-def get_response_date(data: Dict[str, Any], key: str) -> int:
+def get_response_date(data: dict[str, Any], key: str) -> int:
     return data.get(key, time.time())
 
 
-def missing_int(data: Dict[str, Any], key: str) -> int:
+def missing_int(data: dict[str, Any], key: str) -> int:
     return data.get(key, -1)
 
 
@@ -56,10 +56,17 @@ fields = [
     Field("httpsends", False, "httpsends", "VARCHAR"),  # eg 12182
     Field("hardwareversion", True, "hardwareversion", "VARCHAR"),  # eg "2.0"
     Field(
-        "hardwarediscovered", False, "hardwarediscovered", "VARCHAR"
+        "hardwarediscovered",
+        False,
+        "hardwarediscovered",
+        "VARCHAR",
     ),  # eg "2.0+BME280+PMSX003-B+PMSX003-A"
     Field(
-        "current_temp_f", True, "current_temp_c", "DOUBLE PRECISION", fahrenheit2celsius
+        "current_temp_f",
+        True,
+        "current_temp_c",
+        "DOUBLE PRECISION",
+        fahrenheit2celsius,
     ),  # eg 52
     Field("current_humidity", True, "current_humidity", "DOUBLE PRECISION"),  # eg 55
     Field(
@@ -101,7 +108,11 @@ fields = [
     Field("pa_latency", False, "pa_latency", "VARCHAR"),  # eg 631
     Field("response", False, "response", "VARCHAR"),  # eg 201
     Field(
-        "response_date", True, "response_date", "INTEGER", get_response_date
+        "response_date",
+        True,
+        "response_date",
+        "INTEGER",
+        get_response_date,
     ),  # eg 1598179477
     Field("latency", True, "latency", "INTEGER", missing_int),  # eg 1459
     Field("key1_response", False, "key1_response", "VARCHAR"),  # eg 200
@@ -114,13 +125,19 @@ fields = [
     Field("ts_s_latency", False, "ts_s_latency", "VARCHAR"),  # eg 1141
     Field("key1_response_b", False, "key1_response_b", "VARCHAR"),  # eg 200
     Field(
-        "key1_response_date_b", False, "key1_response_date_b", "VARCHAR"
+        "key1_response_date_b",
+        False,
+        "key1_response_date_b",
+        "VARCHAR",
     ),  # eg 1598179472
     Field("key1_count_b", False, "key1_count_b", "VARCHAR"),  # eg 79213
     Field("ts_latency_b", False, "ts_latency_b", "VARCHAR"),  # eg 1133
     Field("key2_response_b", False, "key2_response_b", "VARCHAR"),  # eg 200
     Field(
-        "key2_response_date_b", False, "key2_response_date_b", "VARCHAR"
+        "key2_response_date_b",
+        False,
+        "key2_response_date_b",
+        "VARCHAR",
     ),  # eg 1598179474
     Field("key2_count_b", False, "key2_count_b", "VARCHAR"),  # eg 79217
     Field("ts_s_latency_b", False, "ts_s_latency_b", "VARCHAR"),  # eg 1136
@@ -139,11 +156,13 @@ fields = [
 ]
 
 
-def gen_stored(fields: List[Field] = fields):
+def gen_stored(fields: list[Field] = fields):
     yield from (f for f in fields if f.store_flag)
 
 
-def compose_create(table_name: str, time_field: str, fields: List[Field] = fields) -> str:
+def compose_create(
+    table_name: str, time_field: str, fields: list[Field] = fields
+) -> str:
     fdesc = ",\n".join([f"{f.db_name} {f.data_type}" for f in gen_stored()])
     sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (
 {fdesc},
@@ -169,7 +188,7 @@ def compose_insert(field_names: Sequence, table_name: str) -> str:
     return sql
 
 
-def convert_data(data: Dict[str, Any], fields: List[Field] = fields) -> OrderedDict:
+def convert_data(data: dict[str, Any], fields: list[Field] = fields) -> OrderedDict:
     """return filtered and ordered device data
 
     Args:
@@ -184,7 +203,7 @@ def convert_data(data: Dict[str, Any], fields: List[Field] = fields) -> OrderedD
 
     missing = []
 
-    def convert(data: Dict[str, Any], field: Field) -> Any:
+    def convert(data: dict[str, Any], field: Field) -> Any:
         if field.convert:
             # custom converstion function, takes care of missing data
             return field.convert(data, field.json_key)
