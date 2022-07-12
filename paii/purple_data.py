@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
-
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Sequence
+from collections.abc import Callable
+from typing import Any, NamedTuple
+from collections.abc import Sequence
 
 DB = "timeseries"
 TABLE_RAW = "paii_raw"
@@ -161,7 +161,9 @@ def gen_stored(fields: list[Field] = fields):
 
 
 def compose_create(
-    table_name: str, time_field: str, fields: list[Field] = fields
+    table_name: str,
+    time_field: str,
+    fields: list[Field] = fields,
 ) -> str:
     fdesc = ",\n".join([f"{f.db_name} {f.data_type}" for f in gen_stored()])
     sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (

@@ -7,19 +7,13 @@ A base class for Asyncio producer -> consumer in a separate thread
 import asyncio
 import logging
 from asyncio.exceptions import CancelledError
+from collections.abc import AsyncGenerator, Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
 from threading import Thread
 from time import time
-from typing import (  # noqa: TYP001
-    Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Sequence,
-)
+from typing import Any  # noqa: TYP001
 
 log = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)

@@ -7,11 +7,12 @@ long running, async producer consumer class
 import asyncio
 import logging
 from asyncio.exceptions import CancelledError
+from collections.abc import AsyncGenerator, Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Thread
 from time import time
-from typing import Any, AsyncGenerator, Callable, Coroutine, Sequence  # noqa: TYP001
+from typing import Any  # noqa: TYP001
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

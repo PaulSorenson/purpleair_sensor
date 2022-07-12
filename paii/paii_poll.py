@@ -1,37 +1,3 @@
-#!/usr/bin/env python3
-
-import asyncio
-import configparser
-import json
-import logging
-import site
-import sys
-from argparse import ArgumentParser, Namespace
-from datetime import datetime
-from functools import partial
-from getpass import getpass, getuser
-from logging.handlers import SysLogHandler
-from pathlib import Path
-from typing import Dict, Optional, Sequence
-
-import aiohttp
-import asyncio_mqtt as mq
-import asyncpg as apg
-import keyring
-
-from aioconveyor.aioconveyor2 import AioGenConveyor, Event
-from utils.syslog_handler import get_syslog_handler_args
-
-from .purple_data import (
-    DB,
-    TABLE_RAW,
-    TIME_FIELD,
-    compose_create,
-    compose_insert,
-    convert_data,
-    gen_stored,
-)
-
 """Poll Purple Air PAII sensor and write records to data base
 
 Note this is not for polling the cloud data - it requires a URL that is directly
@@ -50,6 +16,38 @@ need to review:
 # MQTT HA configuration
 - [see MQTT Discovery](https://www.home-assistant.io/docs/mqtt/discovery/)
 """
+
+import asyncio
+import configparser
+import json
+import logging
+import site
+import sys
+from argparse import ArgumentParser, Namespace
+from collections.abc import Sequence
+from datetime import datetime
+from functools import partial
+from getpass import getpass, getuser
+from logging.handlers import SysLogHandler
+from pathlib import Path
+
+import aiohttp
+import asyncio_mqtt as mq
+import asyncpg as apg
+import keyring
+
+from aioconveyor.aioconveyor2 import AioGenConveyor, Event
+from utils.syslog_handler import get_syslog_handler_args
+
+from .purple_data import (
+    DB,
+    TABLE_RAW,
+    TIME_FIELD,
+    compose_create,
+    compose_insert,
+    convert_data,
+    gen_stored,
+)
 
 logging.basicConfig(format="%(asctime)-15s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("paii_poll")
@@ -84,8 +82,9 @@ def get_db_args(defaults: dict[str, str] | None = None) -> ArgumentParser:
         "--host",
         default=None,
         help="Postgres remote host. "
-        "Provide an empty string to override any config file setting if you want to test "
-        "without writing to a database. In this case the data will be printed to stdout",
+        "Provide an empty string to override any config file setting "
+        "if you want to test without writing to a database. In this "
+        "case the data will be printed to stdout",
     )
     ap.add_argument("--user", default=user, help="Override unix username.")
     ap.add_argument(

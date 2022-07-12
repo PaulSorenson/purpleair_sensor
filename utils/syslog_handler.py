@@ -3,7 +3,7 @@
 
 import logging
 import socket
-from typing import Any, Dict, NamedTuple, Optional, Sequence
+from typing import Any
 
 LOG = logging.getLogger(__name__)
 
