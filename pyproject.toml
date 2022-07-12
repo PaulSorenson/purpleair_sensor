@@ -1,3 +1,28 @@
+[tool.poetry]
+name = "purple_air"
+version = "0.1.0"
+description = "purple air logger"
+authors = ["Paul Sorenson <pms@metrak.com>"]
+packages = [
+    {include = "aioconveyor"},
+    {include = "config"},
+    {include = "paii"},
+    {include = "utils"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.8.1"
+asyncio-mqtt = "^0.12.1"
+asyncpg = "^0.26.0"
+keyring = "^23.6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+paii = "paii.paii_poll:main"

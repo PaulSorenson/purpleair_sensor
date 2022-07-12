@@ -18,7 +18,7 @@ import aiohttp
 import asyncio_mqtt as mq
 import asyncpg as apg
 import keyring
-from aioconveyor import AioGenConveyor, Event
+from aioconveyor.aioconveyor2 import AioGenConveyor, Event
 from .purple_data import (
     DB,
     TABLE_RAW,
@@ -321,7 +321,7 @@ async def consume_terminal(event: Event, payload: Dict):
     return 0
 
 
-async def main() -> None:
+async def amain() -> None:
     opt = get_args()
     log.debug(f"{opt}")
     log.setLevel(opt.log_level)
@@ -411,9 +411,13 @@ async def main() -> None:
     log.info("main: conveyor thread no longer running, terminating")
 
 
-if __name__ == "__main__":
+def main():
     try:
         # asyncio.run(main(), debug=True)
-        asyncio.run(main(), debug=True)
+        asyncio.run(amain(), debug=True)
     except KeyboardInterrupt:
         log.error("aioproc exiting")
+
+
+if __name__ == "__main__":
+    main()
