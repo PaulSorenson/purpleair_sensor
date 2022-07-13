@@ -39,7 +39,7 @@ import keyring
 from aioconveyor.aioconveyor2 import AioGenConveyor, Event
 from utils.syslog_handler import get_syslog_handler_args
 
-from .purple_data import (
+from paii.purple_data import (
     DB,
     TABLE_RAW,
     TIME_FIELD,
@@ -369,7 +369,7 @@ async def amain() -> None:
             )
             await conn.execute(
                 f"SELECT create_hypertable('{opt.paii_table}',"
-                " '{opt.time_field}', if_not_exists => TRUE);",
+                f" '{opt.time_field}', if_not_exists => TRUE);",
             )
 
         insert_sql = compose_insert(
