@@ -1,8 +1,7 @@
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, NamedTuple
-from collections.abc import Sequence
 
 DB = "timeseries"
 TABLE_RAW = "paii_raw"

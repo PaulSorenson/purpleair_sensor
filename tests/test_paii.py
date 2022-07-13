@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 
-import logging
 from socket import SOCK_DGRAM, SOCK_STREAM
-
-# from logging.handlers import SysLogHandler
-from unittest import mock
 
 import pytest
 
