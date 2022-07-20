@@ -425,7 +425,6 @@ async def amain() -> None:
 
 def main():
     try:
-        # asyncio.run(main(), debug=True)
         asyncio.run(amain(), debug=True)
     except KeyboardInterrupt:
         log.error("aioproc exiting")
